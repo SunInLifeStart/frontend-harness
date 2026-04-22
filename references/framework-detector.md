@@ -113,7 +113,35 @@
 - 包管理器：pnpm-lock.yaml → pnpm / yarn.lock → yarn / package-lock.json → npm
 - design.md：项目根目录是否存在 `design.md` → hasDesignSpec: true/false
 
-### Step 7: 探测目录结构
+### Step 7: Playwright 可用性检测
+
+```bash
+npx playwright --version 2>/dev/null
+```
+
+- 成功 → 记录版本号
+- 失败 → 标记为未安装
+
+输出到 `.harness-env.json`：
+```json
+{
+  "playwright": {
+    "installed": true,
+    "version": "1.x.x"
+  }
+}
+```
+
+如未安装：
+```json
+{
+  "playwright": {
+    "installed": false
+  }
+}
+```
+
+### Step 8: 探测目录结构
 
 以 `appDir` 为基准，扫描实际目录结构，**不硬编码路径**：
 
@@ -162,7 +190,7 @@ demandRoot:
   非 monorepo → "."（项目根目录）
 ```
 
-### Step 8: 写入缓存
+### Step 9: 写入缓存
 
 将检测结果写入项目根目录的 `.harness-env.json`，下次直接读取。
 

@@ -1,0 +1,142 @@
+# chore: 工程调整
+
+## 用法
+
+```
+chore: <调整描述>
+```
+
+工程层面的调整，包括依赖升级、配置修改、build 脚本修改等。核心特点是兼容性检查。
+
+> **执行模式说明：** 本工作流中所有「调用 references/xxx.md」均指**读取对应文件，按其中步骤顺序执行**。所有步骤由当前 Agent 顺序完成，不启动子 Agent。
+
+---
+
+## 阶段 0: 环境预检
+
+1. **读取环境配置** — 检查 `.harness-env.json` 是否存在：
+   - 不存在 → 调用 `references/framework-detector.md` 执行环境探测
+   - 存在 → 读取缓存
+2. **确认 node_modules 存在** — 不存在则提示安装
+3. **记录当前状态** — 记录 `package.json` 中的关键依赖版本，作为回退参考
+
+---
+
+## 阶段 1: 分析变更
+
+### 1.1 解析变更意图
+
+确认变更类型：
+- **依赖升级** — 升级某个或某些 npm 包
+- **配置修改** — 修改 vite.config / webpack.config / tsconfig / eslint 等配置
+- **Build 脚本修改** — 修改 package.json scripts / CI 配置
+- **工具链调整** — 切换或升级构建工具、lint 工具等
+
+### 1.2 列出变更清单
+
+明确列出：
+- 要修改哪些文件
+- 每个文件具体改什么
+- 修改的原因和目标
+
+---
+
+## 阶段 2: 兼容性评估
+
+### 2.1 Breaking Changes 检查
+
+**依赖升级时：**
+- 检查目标版本的 CHANGELOG / Release Notes
+- 识别 breaking changes
+- 评估 breaking changes 对项目的影响
+- 区分 major / minor / patch 升级
+
+**配置修改时：**
+- 检查配置项是否有废弃（deprecated）
+- 检查新配置项的兼容性要求
+
+### 2.2 依赖树分析
+
+**依赖升级时：**
+- 检查 peer dependencies 兼容性
+- 检查是否有间接依赖冲突
+- 检查是否影响其他依赖的版本要求
+
+### 2.3 风险评估
+
+输出风险等级：
+- **低风险** — patch 升级 / 无 breaking changes 的配置修改
+- **中风险** — minor 升级 / 有兼容性注意事项
+- **高风险** — major 升级 / 核心依赖变更 / 构建工具切换
+
+---
+
+## 阶段 3: 实施变更
+
+### ⏸️ 门禁：major 版本升级
+
+**如果涉及 major 版本升级（如 vue 3.x → 4.x、vite 5.x → 6.x），必须停下来等用户确认。**
+
+输出确认信息：
+- 升级的包和版本范围
+- breaking changes 清单
+- 需要同步修改的代码
+- 预估影响范围
+
+**用户确认后才执行。**
+
+### 3.1 执行变更
+
+**依赖升级：**
+```bash
+cd {{appDir}} && {{packageManager}} install <package>@<version>
+```
+
+**配置修改：**
+- 按方案修改配置文件
+- 保持配置文件的格式和注释风格
+
+**Build 脚本修改：**
+- 修改 package.json scripts
+- 测试脚本可执行
+
+### 3.2 同步修改
+
+如果变更需要同步修改代码（如 API 变更、配置项重命名）：
+- 搜索项目中受影响的代码
+- 逐一修改
+- 遵循框架规范
+
+---
+
+## 阶段 4: 验证
+
+### 4.1 安装验证
+
+```bash
+cd {{appDir}} && {{packageManager}} install
+```
+- 无报错、无 peer dependency 警告（或警告在可接受范围内）
+
+### 4.2 构建验证
+
+```bash
+cd {{appDir}} && {{packageManager}} run build
+```
+- 构建成功、无新增警告
+
+### 4.3 测试验证
+
+如果项目有测试：
+```bash
+cd {{appDir}} && {{packageManager}} run test
+```
+- 测试全部通过
+
+### 4.4 变更摘要
+
+输出：
+- **变更内容**：做了什么调整
+- **兼容性**：是否有 breaking changes、如何处理的
+- **验证结果**：install / build / test 结果
+- **回退方案**：如果出问题如何回退

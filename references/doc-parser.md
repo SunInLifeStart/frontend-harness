@@ -25,13 +25,18 @@
 
 1. macOS → `textutil -convert txt "<file>" -output /tmp/<name>.txt`
 2. 有 pandoc → `pandoc "<file>" -t markdown -o /tmp/<name>.md`
-3. 回退 → 提示用户手动将 docx 内容粘贴为文本
+3. 有 LibreOffice → `soffice --headless --convert-to txt:"Text" --outdir /tmp "<file>"`
+4. 有 python3 + python-docx → `python3 -c "from docx import Document; ..."`
+5. 在线提示 → 提示用户使用在线工具（如 Google Docs）转换后粘贴
+6. 回退 → 提示用户手动将 docx 内容粘贴为文本
 
 **pdf 文件（优先级从高到低）：**
 
 1. 有 pdftotext → `pdftotext "<file>" /tmp/<name>.txt`
 2. 有 python3 + pypdf → `python3 -c "from pypdf import PdfReader; ..."`
-3. 回退 → 提示用户手动将 pdf 内容粘贴为文本
+3. 有 ghostscript → `gs -sDEVICE=txtwrite -o /tmp/<name>.txt "<file>"`
+4. 在线提示 → 提示用户使用在线工具（如 Smallpdf）转换后粘贴
+5. 回退 → 提示用户手动将 pdf 内容粘贴为文本
 
 ### Step 3: 读取转换结果
 
@@ -54,3 +59,17 @@
 如果所有转换工具都不可用：
 - 输出提示：「文档转换工具不可用，请手动将文档内容粘贴到 demand.md 或 output/requirements.md 中」
 - 不中断工作流，继续读取 demand.md 中的文字描述
+
+### 降级流程（关键：转换失败不中断工作流）
+
+无论转换是否成功，工作流都**必须继续执行**。降级处理流程如下：
+
+1. **逐级尝试**：按上述优先级依次检测工具可用性，尝试转换
+2. **单工具失败 → 自动跳到下一优先级**：某个工具执行报错时，捕获异常，继续尝试下一个
+3. **全部失败 → 标注警告，继续执行**：
+   - 在输出中插入：`⚠️ 文档转换未执行，请手动补充需求内容`
+   - 后续步骤（Step 3 ~ Step 5）正常继续
+   - 根据实际可用内容调整分析深度：
+     - 如果 demand.md 中有文字描述 → 基于文字描述进行结构化处理
+     - 如果完全无内容 → 生成空模板，标注所有章节为「待补充」
+4. **部分成功 → 合并可用内容**：多文件场景下，部分文件转换成功、部分失败时，合并已成功的内容，对失败文件单独标注 `⚠️ [文件名] 转换失败，内容待手动补充`

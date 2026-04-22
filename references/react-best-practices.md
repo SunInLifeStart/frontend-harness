@@ -313,3 +313,282 @@ test('提交表单后显示成功提示', async () => {
 - **禁止** 用户输入直接拼接到 href / src
 - **禁止** 硬编码 token / 密钥
 - API 调用走项目统一的 request 工具
+
+---
+
+## 11. React 19 兼容性标注
+
+以下 API 为 React 19 新增，在 React 18 项目中不可用。使用前确认项目 React 版本。
+
+### use() Hook
+
+> ⚠️ **React 19+**，React 18 不可用
+
+```tsx
+// React 19——直接在组件中读取 Promise
+function Comments({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {
+  const comments = use(commentsPromise)
+  return <ul>{comments.map((c) => <li key={c.id}>{c.text}</li>)}</ul>
+}
+
+// React 18 降级方案——用 useEffect + useState 手动处理
+function Comments({ commentsPromise }: { commentsPromise: Promise<Comment[]> }) {
+  const [comments, setComments] = useState<Comment[]>([])
+  useEffect(() => {
+    let cancelled = false
+    commentsPromise.then((data) => {
+      if (!cancelled) setComments(data)
+    })
+    return () => { cancelled = true }
+  }, [commentsPromise])
+  return <ul>{comments.map((c) => <li key={c.id}>{c.text}</li>)}</ul>
+}
+```
+
+### useActionState
+
+> ⚠️ **React 19+**，React 18 不可用
+
+```tsx
+// React 19
+const [error, submitAction, isPending] = useActionState(
+  async (prevState, formData) => {
+    const error = await updateName(formData.get('name') as string)
+    return error || null
+  },
+  null,
+)
+
+// React 18 降级方案——手动管理 pending + error 状态
+const [error, setError] = useState<string | null>(null)
+const [isPending, setIsPending] = useState(false)
+
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setIsPending(true)
+  const formData = new FormData(e.currentTarget)
+  const err = await updateName(formData.get('name') as string)
+  setError(err || null)
+  setIsPending(false)
+}
+```
+
+### useOptimistic
+
+> ⚠️ **React 19+**，React 18 不可用
+
+```tsx
+// React 19
+const [optimisticName, setOptimisticName] = useOptimistic(currentName)
+
+// React 18 降级方案——手动乐观更新
+const [displayName, setDisplayName] = useState(currentName)
+
+const submitAction = async (formData: FormData) => {
+  const newName = formData.get('name') as string
+  setDisplayName(newName) // 乐观更新 UI
+  try {
+    await updateName(newName)
+  } catch {
+    setDisplayName(currentName) // 失败回滚
+  }
+}
+```
+
+### ref 作为普通 prop
+
+> ⚠️ **React 19+**，React 18 需要 `forwardRef`
+
+```tsx
+// React 19——ref 作为普通 prop
+function Input({ ref, ...props }: { ref?: React.Ref<HTMLInputElement> }) {
+  return <input ref={ref} {...props} />
+}
+
+// React 18 降级方案——使用 forwardRef
+const Input = forwardRef<HTMLInputElement, InputProps>((props, ref) => {
+  return <input ref={ref} {...props} />
+})
+```
+
+---
+
+## 12. React Compiler 最佳实践
+
+React Compiler（babel-plugin-react-compiler）已稳定发布 1.0，自动处理 memoization。
+
+### 启用方式
+
+```bash
+npm install -D babel-plugin-react-compiler
+```
+
+```js
+// babel.config.js 或 vite.config.ts
+const ReactCompilerConfig = { /* 配置项 */ }
+
+// Vite + React
+plugins: [
+  react({
+    babel: {
+      plugins: [['babel-plugin-react-compiler', ReactCompilerConfig]],
+    },
+  }),
+]
+
+// Next.js (next.config.js)
+const nextConfig = {
+  experimental: {
+    reactCompiler: true,
+  },
+}
+```
+
+### 三大优化
+
+1. **自动跳过重渲染** — 组件 props 未变时自动跳过，等价于 `React.memo`
+2. **自动缓存计算值** — 自动处理 `useMemo` 场景
+3. **自动缓存回调函数** — 自动处理 `useCallback` 场景
+
+```tsx
+// ✅ 启用 Compiler 后的写法（不需要手动 memo）
+function ProductList({ products, filter }: Props) {
+  const filtered = products.filter((p) => p.category === filter)
+  const handleClick = (id: string) => selectProduct(id)
+  return (
+    <ul>
+      {filtered.map((p) => (
+        <ProductItem key={p.id} product={p} onClick={handleClick} />
+      ))}
+    </ul>
+  )
+}
+```
+
+### 编译器无法优化的场景
+
+以下场景 Compiler 无法自动优化，需要手动处理：
+
+1. **非纯函数组件** — 组件有副作用（直接修改 DOM、全局变量等）
+2. **动态 ref 读取** — 在渲染期间读取 `ref.current`
+3. **依赖外部可变状态** — 读取非 React 管理的可变值（如全局对象）
+4. **自定义 hooks 的动态调用** — 在条件或循环中调用 hook（这本身违反规则）
+
+```tsx
+// ❌ Compiler 无法优化——非纯函数
+function BadComponent() {
+  document.title = 'Hello' // 副作用
+  return <div>Hello</div>
+}
+
+// ✅ 正确做法——用 useEffect 处理副作用
+function GoodComponent() {
+  useEffect(() => {
+    document.title = 'Hello'
+  }, [])
+  return <div>Hello</div>
+}
+```
+
+---
+
+## 13. Next.js Server Component 最佳实践
+
+### Server vs Client 决策指南
+
+```
+需要交互（onClick/onChange/useState）    → Client Component（'use client'）
+需要浏览器 API（window/localStorage）  → Client Component
+需要 useEffect / 生命周期            → Client Component
+只做数据获取 + 展示                    → Server Component（默认）
+直接访问后端资源（DB/文件系统）      → Server Component
+敏感数据处理（token/密钥）           → Server Component
+```
+
+### 组件拆分原则
+
+```tsx
+// ✅ 推荐：服务端获取数据，客户端处理交互
+export default async function ProductPage({ params }: { params: { id: string } }) {
+  const product = await fetchProduct(params.id) // 服务端获取
+  return (
+    <div>
+      <ProductInfo product={product} />       {/* Server Component */}
+      <AddToCartButton productId={product.id} /> {/* Client Component */}
+    </div>
+  )
+}
+
+// ❌ 避免：整个页面标记为 'use client'
+```
+
+### Hydration Mismatch 避免
+
+```tsx
+// ❌ 会导致 hydration mismatch
+function Timestamp() {
+  return <span>{new Date().toLocaleString()}</span>
+}
+
+// ✅ 方案 1：客户端渲染 + useEffect
+'use client'
+function Timestamp() {
+  const [time, setTime] = useState<string>('')
+  useEffect(() => {
+    setTime(new Date().toLocaleString())
+  }, [])
+  return <span>{time}</span>
+}
+
+// ✅ 方案 2：用 suppressHydrationWarning（仅用于无害差异）
+<time suppressHydrationWarning>{new Date().toLocaleString()}</time>
+```
+
+**常见 hydration mismatch 原因：**
+- 时间戳、随机数（服务端和客户端不同）
+- `window` / `navigator` 依赖（服务端不存在）
+- 条件渲染依赖客户端状态（如 `localStorage`）
+
+### Auth / Cookie 处理
+
+```tsx
+import { cookies } from 'next/headers'
+
+// Server Component 中读取 Cookie
+export default async function Dashboard() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('auth-token')?.value
+
+  if (!token) {
+    redirect('/login')
+  }
+
+  const user = await fetchUser(token)
+  return <DashboardContent user={user} />
+}
+```
+
+```tsx
+// middleware.ts——统一认证拦截
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value
+
+  if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/dashboard/:path*'],
+}
+```
+
+**规则：**
+- 认证逻辑放 middleware，不在每个页面重复判断
+- 敏感数据（token、密钥）只在 Server Component / Route Handler 中处理
+- 不将 token 传递给 Client Component，改用 Server Action 封装

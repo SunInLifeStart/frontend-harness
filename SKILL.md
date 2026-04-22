@@ -2,7 +2,7 @@
 name: frontend-harness
 description: |
   前端开发 harness 工作流。通过前缀路由触发：
-  feat: 新需求端到端实现 | bug: Bug修复 | change: 局部修改 | refactor: 代码重构 | init: 初始化需求目录。
+  feat: 新需求端到端实现 | bug: Bug修复 | change: 局部修改 | refactor: 代码重构 | init: 初始化需求目录 | hotfix: 紧急修复 | perf: 性能优化 | docs: 文档更新 | chore: 工程调整。
   内置 Vue 3 / React 19 最佳实践、8 维代码审查、PRD 解析、Figma 解析、API 文档解析、项目资产扫描。
   适用于任何 Vue/React 前端项目（支持 monorepo）。
 ---
@@ -17,13 +17,17 @@ description: |
 
 当用户消息以下列前缀开头时，读取对应的工作流文档并按流程执行：
 
-| 前缀 | 工作流 | 适用场景 | 详细流程 |
-|------|--------|----------|----------|
-| `feat: <需求名>` | 新需求实现 | 新功能、有 PRD、涉及 3+ 组件/页面 | `references/workflow-feat.md` |
-| `bug: <问题描述>` | Bug 修复 | 页面报错、功能异常、样式错乱 | `references/workflow-bug.md` |
-| `change: <修改描述>` | 局部修改 | 改样式/逻辑、调交互、反馈微调 | `references/workflow-change.md` |
-| `refactor: <重构目标>` | 代码重构 | 不改功能，优化结构/性能/可维护性 | `references/workflow-refactor.md` |
-| `init: <需求名>` | 初始化需求目录 | 新需求开始前创建目录脚手架 | `references/workflow-init.md` |
+| 前缀 | 工作流 | 适用场景 | 判断标准 | 详细流程 |
+|------|--------|----------|---------|----------|
+| `feat: <需求名>` | 新需求实现 | 新功能、有 PRD、涉及 3+ 组件/页面 | 产品需求驱动，新增业务价值 | `references/workflow-feat.md` |
+| `bug: <问题描述>` | Bug 修复 | 页面报错、功能异常、样式错乱 | **非预期行为**，违反设计稿或需求文档 | `references/workflow-bug.md` |
+| `change: <修改描述>` | 局部修改 | 改样式/逻辑、调交互、反馈微调 | **预期调整**，优化体验或调整规范 | `references/workflow-change.md` |
+| `refactor: <重构目标>` | 代码重构 | 不改功能，优化结构/性能/可维护性 | 改内部结构，不改外部行为 | `references/workflow-refactor.md` |
+| `init: <需求名>` | 初始化需求目录 | 新需求开始前创建目录脚手架 | 脚手架初始化 | `references/workflow-init.md` |
+| `hotfix: <问题描述>` | 紧急修复 | 生产 P0 bug | 线上紧急故障，需快速路径修复 | `references/workflow-hotfix.md` |
+| `perf: <优化目标>` | 性能优化 | 打包/运行时性能 | Bundle 过大、加载慢、渲染卡顿 | `references/workflow-perf.md` |
+| `docs: <修改描述>` | 文档更新 | 仅改文档/注释 | 不涉及功能代码，只改文档内容 | `references/workflow-docs.md` |
+| `chore: <调整描述>` | 工程调整 | 依赖升级/配置 | 工程层面调整，不改业务逻辑 | `references/workflow-chore.md` |
 
 ### 路由优先级
 
@@ -108,6 +112,43 @@ description: |
 - 「调用 references/xxx.md」= 读取该文件内容，按其中步骤顺序执行
 - 每个工作流的阶段按顺序进行，不跳步
 - 遇到审批门禁（标 ⏸️ 的地方）必须停下等用户确认
+
+---
+
+## 审批门禁政策
+
+### 一般原则
+- 任何可能影响产品用户的变更都需要门禁
+- 门禁用 ⏸️ 符号标注
+- 门禁停下后需要用户明确确认（"批准"、"继续"、"开始"等）
+
+### 工作流门禁清单
+
+#### feat: 工作流
+- ⏸️ 阶段 1：信息不足时 → 询问用户补充
+- ⏸️ 阶段 3：实现计划完成后 → 等用户审批
+
+#### bug: 工作流
+- ⏸️ 阶段 2：修复可能影响其他功能时 → 告知用户风险
+
+#### change: 工作流
+- ⏸️ 阶段 1：影响 >3 个文件时 → 先输出方案等确认
+
+#### refactor: 工作流
+- ⏸️ 阶段 2：影响 >3 个文件时 → 输出方案等确认
+
+#### hotfix: 工作流
+- 无显式门禁（快速路径，跳过完整审查）
+- 修复后输出后续建议，由用户决定是否跟进
+
+#### perf: 工作流
+- ⏸️ 阶段 3：优化方案完成后 → 等用户确认后才动代码
+
+#### docs: 工作流
+- 无门禁（轻量流程）
+
+#### chore: 工作流
+- ⏸️ 阶段 3：涉及 major 版本升级时 → 输出 breaking changes 清单等确认
 
 ---
 

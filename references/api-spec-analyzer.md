@@ -44,10 +44,31 @@
 ### Step 3: 匹配项目现有 API 层
 
 1. 搜索 `{{apiDir}}` 目录下所有文件（从 `.harness-env.json` 读取路径）
-2. 对每个接口路径，搜索是否已有对应函数：
-   - 搜索关键词：接口路径字符串
+2. 对每个接口，使用三级匹配策略逐级搜索：
+
+**第一级：精确匹配**
+- 搜索 URL 路径中的关键词（资源名）
+- 例如：`/api/team/points` → 搜索 `team/points`、`/team/points`
+- 命中 → 置信度 100%
+
+**第二级：语义匹配**（精确匹配未命中时）
+- 提取 API 语义，映射为函数命名约定：
+  - `GET /xxx/list` → 搜索 `getXxxList`、`fetchXxxList`、`queryXxxList`
+  - `GET /xxx/:id` → 搜索 `getXxx`、`getXxxDetail`、`getXxxById`
+  - `POST /xxx` → 搜索 `createXxx`、`addXxx`、`postXxx`
+  - `PUT /xxx/:id` → 搜索 `updateXxx`、`editXxx`、`putXxx`
+  - `DELETE /xxx/:id` → 搜索 `deleteXxx`、`removeXxx`
+- 命中 → 置信度 80%~95%（根据命名匹配程度）
+
+**第三级：上下文匹配**（前两级均未命中时）
+- 提取接口用途中的中文关键词（如「获取积分」「订阅套餐」）
+- 搜索代码中的中文注释、变量命名
+- 命中 → 置信度 50%~75%（根据上下文关联度）
+
+3. 根据匹配结果标注：
    - 已有 → 标注 `✅ 可复用` + 文件路径和函数名
    - 没有 → 标注 `🆕 需新建`
+   - 置信度 < 95% → 输出预警 `⚠️ 匹配置信度较低，建议人工确认`
 
 ### Step 4: 生成函数签名建议
 
@@ -69,10 +90,13 @@ export function getTeamPoints(params) {
 ```markdown
 ## 接口清单
 
-| # | 方法 | 路径 | 用途 | 状态 | 位置 |
-|---|------|------|------|------|------|
-| 1 | GET | /api/team/points | 获取积分 | ✅ 可复用 | src/api/credit.js:getTeamPoints |
-| 2 | POST | /api/team/plan | 订阅套餐 | 🆕 需新建 | - |
+| # | 方法 | 路径 | 用途 | 状态 | 位置 | 匹配置信度 |
+|---|------|------|------|------|------|------------|
+| 1 | GET | /api/team/points | 获取积分 | ✅ 可复用 | src/api/credit.js:getTeamPoints | 100% |
+| 2 | GET | /api/team/members | 获取成员 | ✅ 可复用 ⚠️ | src/api/team.js:fetchMembers | 85%（语义匹配，建议人工确认） |
+| 3 | POST | /api/team/plan | 订阅套餐 | 🆕 需新建 | - | - |
+
+> ⚠️ 置信度 < 95% 的接口已标注预警，建议用户人工确认匹配结果。
 
 ## 新建接口函数签名
 

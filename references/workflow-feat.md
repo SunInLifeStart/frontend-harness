@@ -7,7 +7,7 @@ feat: <需求名>
 feat: <项目名>/<需求名>    ← monorepo 时指定项目
 ```
 
-读取 `{{demandRoot}}/demand/<需求名>/` 下的需求文档，经过 8 个阶段完成从需求到代码的全流程。
+读取 `{{demandRoot}}/demand/<需求名>/` 下的需求文档，经过 9 个阶段完成从需求到代码的全流程。
 
 > **路径说明：** `{{demandRoot}}` 从 `.harness-env.json` 读取。非 monorepo 时为项目根目录，monorepo 时为 `{{appDir}}`。下文所有 `demand/<需求名>/` 路径均相对于 `{{demandRoot}}`。
 
@@ -155,7 +155,53 @@ feat: <项目名>/<需求名>    ← monorepo 时指定项目
 
 ---
 
-## 阶段 6: 自查 + 代码审查
+## 阶段 6: Playwright 功能验证与 UI 截图对比（可选）
+
+代码实现完成后，通过 Playwright 进行功能验证和 UI 截图对比，确保页面可访问、交互正常、视觉还原符合预期。
+
+> **本阶段为可选步骤。** 如果项目未安装 Playwright 或无法启动页面，可跳过并继续后续阶段。
+
+### 6.1 前置条件检查
+
+1. **读取环境缓存** — 检查 `.harness-env.json` 中的 `playwright.installed` 字段
+   - 如果 `installed: true` → 直接进入功能验证
+   - 如果 `installed: false` → 提示用户可通过 `npm init playwright@latest` 安装，跳过本阶段
+   - 如果字段不存在 → 执行实时检测（`npx playwright --version`），并将结果回写到 `.harness-env.json`
+2. 检查项目是否有已有的 Playwright 测试配置（如 `playwright.config.ts`）
+3. 确认开发服务器可启动并访问目标页面
+   - 无法启动 → 跳过本阶段
+
+### 6.2 功能验证
+
+针对本次需求涉及的页面/组件，编写或运行 Playwright 测试：
+1. 页面可访问性 — 目标页面能正常加载，无控制台报错
+2. 关键交互可用 — 按钮点击、表单提交、弹窗展示等核心交互正常
+3. 数据展示正确 — 列表渲染、详情展示等数据绑定无误
+4. 如果项目已有 e2e 测试 → 优先运行受本次修改影响的测试用例
+
+### 6.3 UI 截图对比（推荐）
+
+使用 Playwright 的 `page.screenshot()` API 进行截图对比：
+
+1. **修改前基准截图**（如有条件）：在代码修改前对目标页面截图
+   - 存入 `demand/<需求名>/screenshots/before/`
+2. **修改后截图**：代码修改完成后对同一页面截图
+   - 存入 `demand/<需求名>/screenshots/after/`
+3. **截图对比结果**：
+   - 列出每个页面的 before/after 截图路径
+   - 标注是否有视觉变化
+   - 视觉变化是否符合需求预期
+
+### 6.4 验证结果输出
+
+输出验证摘要：
+- 通过/失败的测试列表
+- 截图对比摘要（如已执行）
+- 如有失败项 → 标注需要关注的问题，回到阶段 5 修复后重新验证
+
+---
+
+## 阶段 7: 自查 + 代码审查
 
 实现完成后，**自行按 code-reviewer 的规则审查代码**。
 
@@ -175,9 +221,9 @@ feat: <项目名>/<需求名>    ← monorepo 时指定项目
 
 ---
 
-## 阶段 7: 质量保障
+## 阶段 8: 质量保障
 
-### 7.1 代码验证
+### 8.1 代码验证
 
 > **注意：** 如果项目配置了自动 lint hook，lint + format 会自动执行，无需手动运行。
 
@@ -188,14 +234,14 @@ cd {{appDir}} && {{packageManager}} run build
 - 成功 → 继续
 - 失败 → 修复后重试
 
-### 7.2 测试验证
+### 8.2 测试验证
 
 读取 `references/test-runner.md`，按步骤执行：
 - 检查 `demand/<需求名>/test/test-cases.md` 是否存在
 - 存在 → 生成检查清单（checklist），标注代码覆盖情况
 - 不存在 → 跳过
 
-### 7.3 完成报告
+### 8.3 完成报告
 
 写入 `demand/<需求名>/output/report.md`，包含：
 - 实现的功能摘要
@@ -206,6 +252,6 @@ cd {{appDir}} && {{packageManager}} run build
 - 测试检查清单（如有）
 - 遗留问题（如有）
 
-### 7.4 清理确认
+### 8.4 清理确认
 
 询问用户是否清理 `demand/<需求名>/output/` 中的中间产物（requirements.md、component-map.md），仅保留 implementation-plan.md 和 report.md。

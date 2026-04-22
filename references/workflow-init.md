@@ -69,7 +69,32 @@ demand/<dirName>/
 > - Cursor → `.agents/skills/frontend-harness/templates/`
 > - 其他 agent → 按 `npx skills add` 安装路径确定
 
-### Step 5: 输出提示
+### Step 5: Playwright 端到端测试配置（可选）
+
+检查项目是否已安装 Playwright：
+
+```bash
+npx playwright --version
+```
+
+**如已安装** → 记录到环境配置（`.harness-env.json` 的 `playwright` 字段），跳过后续步骤
+
+**如未安装** → 询问用户：
+
+> 是否为本项目配置 Playwright 端到端测试？
+> - Playwright 可在代码修改后自动验证功能和 UI 截图对比
+> - 输入「是」初始化 Playwright，输入「跳过」稍后配置
+
+如果用户选择「是」：
+1. 执行 `npm init playwright@latest`
+2. 建议使用默认配置（TypeScript、tests 目录、安装浏览器）
+3. 将 Playwright 状态写入环境配置（`.harness-env.json` 中 `playwright.installed: true` + 版本号）
+
+如果用户选择「跳过」：
+- 标注「后续工作流中的 Playwright 验证步骤将自动跳过」
+- 记录未安装状态到环境配置（`.harness-env.json` 中 `playwright.installed: false`）
+
+### Step 6: 输出提示
 
 ```
 ✅ 需求目录已创建: {{demandRoot}}/demand/<dirName>/

@@ -94,10 +94,34 @@ Profile: demand / modify / fix / refactor
 
 ### 维度 3: UI 状态完整性（demand + modify profile）
 
-- [ ] loading 状态
-- [ ] error 状态
-- [ ] empty 状态
-- [ ] Figma 设计中的所有状态
+#### 以用户流程为中心的检查方式
+
+遍历每个用户操作路径，依次检查以下 4 个状态：
+
+| 状态 | 检查项 |
+|--------|--------|
+| State 1: 初始加载 | - [ ] loading 骨架屏/进度条是否展示<br>- [ ] 加载过程是否可取消（如适用） |
+| State 2: 数据成功加载 | - [ ] 所有设计稿状态是否实现<br>- [ ] 空数据处理（empty state） |
+| State 3: 加载失败 | - [ ] 错误消息是否友好可读<br>- [ ] 重试按钮是否提供<br>- [ ] 失败是否不阻塞其他功能 |
+| State 4: 用户交互 | - [ ] 按钮点击后 loading 状态<br>- [ ] 操作中 disabled 防重复提交<br>- [ ] hover/focus 反馈状态 |
+
+#### 按页面类型调整检查项
+
+根据当前页面类型，自动确定必检状态：
+
+| 页面类型 | 必检状态 |
+|----------|----------|
+| 列表页 | loading + error + empty + 分页 |
+| 登录页 | loading + error |
+| 表单页 | loading + error + disabled + 验证提示 |
+| 详情页 | loading + error（无 empty） |
+
+#### 快速检查路径
+
+对每个用户操作路径执行以下检查：
+1. 确认页面类型 → 获取必检状态清单
+2. 按 State 1→4 顺序遍历 → 每个状态是否已处理
+3. 对照 Figma 设计稿 → 检查是否有遗漏状态
 
 ### 维度 4: 可访问性（demand profile 才检查）
 

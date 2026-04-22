@@ -308,3 +308,222 @@ const HeavyChart = defineAsyncComponent(() => import('./HeavyChart.vue'))
 - 路由 meta 设置 `title` 和权限标识
 - 参数验证不信任 route params，做必要校验
 - 按功能模块拆分路由文件（如果项目已有此模式）
+
+---
+
+## 11. 组件通信完整指南
+
+### 通信方式决策树
+
+```
+父子组件通信     → Props 向下 + Emit 向上（或 defineModel）
+兄弟组件通信     → 父组件中转（提升状态到父组件）
+深层嵌套（>3 层） → provide/inject（配置/主题）或 Pinia（业务状态）
+跨模块通信       → Pinia Store
+```
+
+### 父子通信——defineModel（Vue 3.4+）
+
+```vue
+<!-- 父组件 -->
+<template>
+  <CustomInput v-model="username" />
+  <CustomInput v-model:title="pageTitle" />
+</template>
+
+<!-- 子组件 CustomInput.vue -->
+<script setup>
+  // 替代 prop + emit 的 v-model 模式
+  const modelValue = defineModel()
+  const title = defineModel('title')
+</script>
+
+<template>
+  <input v-model="modelValue" />
+</template>
+```
+
+**何时用 defineModel vs props + emit：**
+- 双向绑定场景（表单控件、开关）→ `defineModel`
+- 单向数据流 + 事件回调 → `props + emit`
+
+### 兄弟通信——父组件中转
+
+```vue
+<!-- 父组件 -->
+<script setup>
+  import { ref } from 'vue'
+  const selectedItem = ref(null)
+</script>
+
+<template>
+  <!-- 兄弟 A：触发选择 -->
+  <ItemList @select="selectedItem = $event" />
+  <!-- 兄弟 B：显示详情 -->
+  <ItemDetail :item="selectedItem" />
+</template>
+```
+
+**规则：** 不使用 EventBus / mitt 做兄弟通信。状态提升到父组件或用 Pinia。
+
+### 深层嵌套——provide/inject 安全边界
+
+```typescript
+// 统一定义 injection key（带类型）
+import type { InjectionKey } from 'vue'
+
+export const ThemeKey: InjectionKey<Ref<'light' | 'dark'>> = Symbol('theme')
+export const ConfigKey: InjectionKey<AppConfig> = Symbol('config')
+```
+
+```vue
+<!-- 祖先组件 -->
+<script setup>
+  import { provide, ref } from 'vue'
+  import { ThemeKey } from '@/constants/injection-keys'
+
+  const theme = ref<'light' | 'dark'>('light')
+  provide(ThemeKey, theme)
+</script>
+```
+
+```vue
+<!-- 后代组件 -->
+<script setup>
+  import { inject } from 'vue'
+  import { ThemeKey } from '@/constants/injection-keys'
+
+  // 必须提供默认值或做非空检查
+  const theme = inject(ThemeKey, ref('light'))
+</script>
+```
+
+**provide/inject 安全规则：**
+- ✅ 适用：主题、全局配置、UI 框架上下文
+- ❌ 禁止：业务数据传递（用 Pinia 代替）
+- 始终用 `Symbol` 作为 injection key，避免字符串冲突
+- inject 时始终提供默认值或做非空校验
+
+### 跨模块——Pinia
+
+参见第 4 节「 Pinia 状态管理」。跨模块通信统一通过 Pinia store，不使用全局事件总线。
+
+---
+
+## 12. 大型项目最佳实践
+
+### Monorepo 共享组件库组织
+
+```
+packages/
+├── ui/                      ← 共享组件库
+│   ├── src/
+│   │   ├── components/      ← 通用组件
+│   │   ├── composables/     ← 通用 hooks
+│   │   └── index.ts         ← 统一导出
+│   └── package.json
+├── utils/                   ← 共享工具函数
+│   ├── src/
+│   └── package.json
+apps/
+├── admin/                   ← 业务应用 A
+└── portal/                  ← 业务应用 B
+```
+
+**规则：**
+- 共享组件库不包含业务逻辑，只做通用 UI 封装
+- 共享包通过 workspace 协议引用（如 `"@scope/ui": "workspace:*"`）
+- 每个共享包有独立的 `package.json` 和构建配置
+- 组件库导出时提供 TypeScript 类型声明
+
+### 循环依赖检测
+
+```bash
+# 使用 madge 检测循环依赖
+npx madge --circular --extensions ts,vue src/
+```
+
+**常见循环依赖场景及解决方案：**
+
+```
+A.vue → B.vue → A.vue     → 提取共享逻辑到 composable
+store → api → store         → api 层不应依赖 store，改为参数传入
+utils → constants → utils   → 拆分为更细粒度的模块
+```
+
+**规则：**
+- CI 中集成循环依赖检测，发现新增循环依赖时构建失败
+- 依赖方向：页面 → 组件 → composables → utils，不反向
+
+### SSR Hydration 处理（Nuxt）
+
+```vue
+<!-- ❌ 会导致 hydration mismatch -->
+<template>
+  <span>{{ new Date().toLocaleString() }}</span>
+</template>
+
+<!-- ✅ 使用 <ClientOnly> 包裹客户端专属内容 -->
+<template>
+  <ClientOnly>
+    <span>{{ now }}</span>
+    <template #fallback>
+      <span>加载中...</span>
+    </template>
+  </ClientOnly>
+</template>
+
+<script setup>
+  import { ref, onMounted } from 'vue'
+  const now = ref('')
+  onMounted(() => {
+    now.value = new Date().toLocaleString()
+  })
+</script>
+```
+
+**常见 hydration mismatch 原因：**
+- 时间戳、随机数（服务端和客户端不同）
+- `window` / `document` 依赖（服务端不存在）
+- 条件渲染依赖客户端状态（如 `localStorage`）
+- 浏览器插件修改 DOM
+
+**规则：**
+- 客户端专属内容用 `<ClientOnly>` 包裹
+- 提供 `#fallback` 插槽作为服务端占位
+- `onMounted` 中访问浏览器 API
+
+### 路由懒加载
+
+```javascript
+// 基础懒加载
+const routes = [
+  {
+    path: '/dashboard',
+    component: () => import('@/views/dashboard/index.vue'),
+  },
+]
+
+// 分组懒加载（同一模块的页面打包到同一 chunk）
+const routes = [
+  {
+    path: '/settings',
+    component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/index.vue'),
+    children: [
+      {
+        path: 'profile',
+        component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/profile.vue'),
+      },
+      {
+        path: 'security',
+        component: () => import(/* webpackChunkName: "settings" */ '@/views/settings/security.vue'),
+      },
+    ],
+  },
+]
+```
+
+**规则：**
+- 所有路由页面使用懒加载，不直接 import
+- 相关页面用 chunk name 分组，减少请求数
+- 大型组件用 `defineAsyncComponent` 加载提示
