@@ -46,6 +46,7 @@ init: <项目名>/<需求名>    ← monorepo 时指定项目
 demand/<dirName>/
 ├── demand.md
 ├── prd/
+│   └── prd-links.md
 ├── figma/
 │   └── figma-links.md
 ├── api/
@@ -60,9 +61,10 @@ demand/<dirName>/
 从 `templates/` 目录读取模板，替换占位符后写入对应文件：
 
 1. **demand.md** ← `templates/demand.md.tpl`（替换 `{{需求名称}}` 为 `<displayName>`）
-2. **figma/figma-links.md** ← `templates/figma-links.md.tpl`
-3. **api/README.md** ← `templates/api-readme.md.tpl`
-4. **test/test-cases.md** ← `templates/test-cases.md.tpl`
+2. **prd/prd-links.md** ← `templates/prd-links.md.tpl`
+3. **figma/figma-links.md** ← `templates/figma-links.md.tpl`
+4. **api/README.md** ← `templates/api-readme.md.tpl`
+5. **test/test-cases.md** ← `templates/test-cases.md.tpl`
 
 > **模板路径说明：** `templates/` 位于 skill 安装目录下。不同 agent 的安装位置不同：
 > - Claude Code → `.claude/skills/frontend-harness/templates/`
@@ -101,7 +103,7 @@ npx playwright --version
    需求名称: <displayName>
 
 下一步：
-1. 将 PRD 文档（docx/pdf）放入 demand/<dirName>/prd/
+1. 将 PRD 文档（docx/pdf）放入 demand/<dirName>/prd/，或编辑 demand/<dirName>/prd/prd-links.md 填入飞书文档链接
 2. 编辑 demand/<dirName>/figma/figma-links.md 填入 Figma 链接
 3. 将各后端模块的 API 文档（.md）放入 demand/<dirName>/api/（每个模块一个文件）
 4. （可选）编辑 demand/<dirName>/test/test-cases.md 填入测试用例

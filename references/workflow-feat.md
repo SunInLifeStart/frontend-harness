@@ -49,8 +49,11 @@ feat: <项目名>/<需求名>    ← monorepo 时指定项目
 ### 1.2 解析 PRD 文档
 
 读取 `references/doc-parser.md`，按步骤执行：
-- 扫描 `demand/<需求名>/prd/` 下所有 .docx 和 .pdf 文件
-- 将文档转为结构化 Markdown
+- 扫描 `demand/<需求名>/prd/` 下所有 `.docx`、`.pdf`
+- 读取 `demand/<需求名>/prd/prd-links.md` 中的飞书 / Lark 文档链接
+- 扫描 `demand/<需求名>/prd/*.md` 和 `demand/<需求名>/demand.md` 中出现的飞书 / Lark 文档链接
+- 本地文档按本地转换链路解析；飞书 / Lark 文档必须调用本机 `lark-doc` skill 解析
+- 将所有 PRD 来源合并为结构化 Markdown
 
 ### 1.3 解析 Figma 设计稿
 

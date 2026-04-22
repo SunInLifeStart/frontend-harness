@@ -45,7 +45,7 @@ bash .claude/skills/frontend-harness/scripts/postinstall.sh .
 | 能力 | 说明 |
 |------|------|
 | 框架检测 | 自动检测 Vue/React、UI 库、CSS 方案、monorepo，结果缓存到 `.harness-env.json`，多维度自动失效 |
-| PRD 解析 | docx/pdf 文档 → 结构化 Markdown（6 层降级方案，转换失败不中断流程） |
+| PRD 解析 | docx/pdf/飞书文档链接 → 结构化 Markdown（本地转换 + lark-doc 解析，失败不中断流程） |
 | Figma 解析 | 设计稿 → 组件树 + 状态矩阵（MCP 优先获取，无 MCP 自动降级为截图识别） |
 | API 解析 | API 文档 → 接口清单 + 复用标注（三级匹配：精确 → 语义 → 上下文，附匹配置信度） |
 | 资产扫描 | 扫描组件/hooks/api/store 等可复用资产（统一输出格式，扫描范围按项目规模自适应） |
@@ -203,7 +203,7 @@ frontend-harness/
 │   ├── workflow-chore.md       # chore: 工程调整
 │   ├── vue-best-practices.md   # Vue 3 编码规范
 │   ├── react-best-practices.md # React 19 编码规范（含 Compiler/Server Component）
-│   ├── doc-parser.md           # PRD 文档解析（6 层降级）
+│   ├── doc-parser.md           # PRD 文档解析（docx/pdf/飞书文档）
 │   ├── figma-analyzer.md       # Figma 设计解析（MCP 优先）
 │   ├── api-spec-analyzer.md    # API 文档解析（三级智能匹配）
 │   ├── component-scanner.md    # 项目资产扫描（标准化输出）
@@ -215,6 +215,7 @@ frontend-harness/
 │   └── lint-format.sh          # Claude Code Stop hook（额外安全网）
 ├── templates/                  # 需求目录脚手架模板
 │   ├── demand.md.tpl
+│   ├── prd-links.md.tpl
 │   ├── figma-links.md.tpl
 │   ├── api-readme.md.tpl
 │   └── test-cases.md.tpl

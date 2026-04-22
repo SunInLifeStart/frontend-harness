@@ -3,7 +3,7 @@ name: frontend-harness
 description: |
   前端开发 harness 工作流。通过前缀路由触发：
   feat: 新需求端到端实现 | bug: Bug修复 | change: 局部修改 | refactor: 代码重构 | init: 初始化需求目录 | hotfix: 紧急修复 | perf: 性能优化 | docs: 文档更新 | chore: 工程调整。
-  内置 Vue 3 / React 19 最佳实践、8 维代码审查、PRD 解析、Figma 解析、API 文档解析、项目资产扫描。
+  内置 Vue 3 / React 19 最佳实践、8 维代码审查、PRD 解析（docx/pdf/飞书文档）、Figma 解析、API 文档解析、项目资产扫描。
   适用于任何 Vue/React 前端项目（支持 monorepo）。
 ---
 
@@ -96,7 +96,7 @@ description: |
 | 能力 | 文档 | 用途 |
 |------|------|------|
 | 框架检测 | `references/framework-detector.md` | 检测框架/UI库/CSS方案/monorepo，输出 `.harness-env.json`（含缓存失效 + overrides） |
-| PRD 解析 | `references/doc-parser.md` | docx/pdf → 结构化 Markdown |
+| PRD 解析 | `references/doc-parser.md` | docx/pdf/飞书文档链接 → 结构化 Markdown |
 | Figma 解析 | `references/figma-analyzer.md` | 设计稿 → 组件树 + 状态矩阵 |
 | API 解析 | `references/api-spec-analyzer.md` | API 文档 → 接口清单 + 复用标注 |
 | 资产扫描 | `references/component-scanner.md` | 扫描组件/hooks/api/store 等可复用资产 |
@@ -192,7 +192,8 @@ description: |
 ```
 demand/<需求名>/
 ├── demand.md           ← 需求简述
-├── prd/                ← PRD 文档（docx/pdf）
+├── prd/                ← PRD 文档（docx/pdf/飞书文档链接）
+│   └── prd-links.md    ← 飞书 / Lark PRD 链接
 ├── figma/
 │   └── figma-links.md  ← Figma 链接 + 页面说明
 ├── api/
