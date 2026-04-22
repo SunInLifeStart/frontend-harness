@@ -83,7 +83,7 @@ if [ -d "$PROJECT_ROOT/.claude" ]; then
   setup_claude
 else
   echo "[Claude Code] 未检测到 .claude/ 目录，跳过"
-  echo "  如需启用，先运行: npx skills add zhumo/frontend-harness -a claude-code"
+  echo "  如需启用，先运行: npx skills add SunInLifeStart/frontend-harness -a claude-code"
 fi
 
 # Cursor / Codex / 其他 agent — npx skills add 已处理 skill 分发

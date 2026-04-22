@@ -8,7 +8,7 @@
 
 ```bash
 # 1. 安装 skill 到所有 AI 工具
-npx skills add zhumo/frontend-harness
+npx skills add SunInLifeStart/frontend-harness
 
 # 2.（Claude Code 用户）补充安装 hooks/settings/templates
 bash .claude/skills/frontend-harness/scripts/postinstall.sh .
@@ -16,7 +16,7 @@ bash .claude/skills/frontend-harness/scripts/postinstall.sh .
 
 ## 快速上手
 
-1. `npx skills add zhumo/frontend-harness`
+1. `npx skills add SunInLifeStart/frontend-harness`
 2. （Claude Code 用户）`bash .claude/skills/frontend-harness/scripts/postinstall.sh .`
 3. 在对话中输入 `feat: 你的需求名` 开始
 4. 首次触发会自动探测项目环境，生成 `.harness-env.json`（后续免检）
