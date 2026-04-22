@@ -8,13 +8,26 @@
 
 **缓存文件：** `.harness-env.json`（项目根目录）
 
+缓存采用**多维度自动失效**策略，无需手动删除缓存文件：
+
 ```
 1. 检查项目根目录 .harness-env.json 是否存在
-2. 存在且内容完整 → 直接读取并返回，跳过所有检测步骤
-3. 不存在 → 执行完整检测，检测完成后写入缓存文件
+2. 不存在 → 执行完整检测
+3. 存在 → 执行多维度缓存校验（见 Step 0）
+   - 校验通过 → 直接读取并返回，跳过所有检测步骤
+   - 校验失败 → 缓存失效，执行完整检测并覆盖写入
 ```
 
-**缓存失效：** 当项目 package.json 的 dependencies 发生重大变化时（如安装了新框架），手动删除 `.harness-env.json` 即可触发重新检测。
+### 缓存失效触发场景
+
+| 场景 | 触发原因 | 结果 |
+|------|----------|------|
+| `npm install` 新包 | lockfile 内容 hash 变化 | 自动失效 |
+| monorepo 切换 app | appDir 路径不存在 | 自动失效 |
+| 修改 workspace 配置 | pnpm-workspace.yaml 或 workspaces 字段内容变化 | 自动失效 |
+| 升级依赖（即使只改 patch 版本） | lockfile 内容变化 | 自动失效 |
+| 修改 scripts 字段 | scripts 不参与 cacheKey 计算 | **不触发**失效 |
+| 手动删除 `.harness-env.json` | 缓存文件不存在 | 直接重新检测 |
 
 ## 输入
 
@@ -49,7 +62,35 @@
 
 ### Step 0: 检查缓存
 
-读取项目根目录的 `.harness-env.json`，如果存在且内容完整（包含 `framework`、`appDir`、`srcDir` 等关键字段）→ 直接返回，结束。
+读取项目根目录的 `.harness-env.json`：
+
+1. **不存在** → 执行完整检测（跳至 Step 1）
+2. **存在** → 校验缓存有效性（多维度）：
+
+#### a. _cacheKey 校验
+
+计算当前项目的 cacheKey，与缓存中的 `_cacheKey` 字段对比。
+
+cacheKey 的输入源（**全部参与 hash，使用 SHA-256**）：
+- 项目根 `package.json` 的 `dependencies` + `devDependencies`
+- `appDir` 下的 `package.json` 的 `dependencies` + `devDependencies`（monorepo 场景）
+- lockfile 的内容 hash（`package-lock.json` / `yarn.lock` / `pnpm-lock.yaml`）
+  **注意：hash lockfile 的文件内容，不是修改时间戳（mtime 在 clone/checkout/解压后不可靠）**
+- `pnpm-workspace.yaml` 或 `package.json` 中 `workspaces` 字段的内容（monorepo 场景）
+- 缓存中记录的 `appDir` 值
+
+两者不一致 → 缓存失效，执行完整检测（跳至 Step 1）
+
+#### b. 关键路径存在性校验
+
+cacheKey 一致后，继续校验：
+- `appDir` 路径是否实际存在？**不存在 → 失效**
+- `srcDir` 路径是否实际存在？**不存在 → 失效**
+- `node_modules` 是否存在？**不存在 → 提示用户安装依赖，但不强制失效**
+
+#### c. 全部校验通过 → 使用缓存
+
+直接返回缓存内容，结束。
 
 ### Step 1: 检测 monorepo
 
@@ -192,7 +233,78 @@ demandRoot:
 
 ### Step 9: 写入缓存
 
-将检测结果写入项目根目录的 `.harness-env.json`，下次直接读取。
+将检测结果写入项目根目录的 `.harness-env.json`。写入时**必须包含缓存元数据字段**：
+
+```json
+{
+  "_cacheKey": "<sha256-of-all-inputs>",
+  "_cachedAt": "<ISO-8601-timestamp>",
+  "_lockfileHash": "<sha256-of-lockfile-content>",
+  "framework": "vue",
+  "frameworkVersion": "3.5",
+  "ui": "element-plus",
+  "css": "scss",
+  "testFramework": "vitest",
+  "packageManager": "pnpm",
+  "monorepo": true,
+  "appDir": "apps/template",
+  "srcDir": "apps/template/src",
+  "apiDir": "apps/template/src/api",
+  "viewsDir": "apps/template/src/views",
+  "componentsDir": "apps/template/src/components",
+  "storesDir": "apps/template/src/stores",
+  "routerDir": "apps/template/src/router",
+  "i18nDir": "apps/template/src/language",
+  "stylesDir": "apps/template/src/styles",
+  "demandRoot": "apps/template",
+  "playwright": { "installed": true, "version": "1.x.x" }
+}
+```
+
+**元数据字段说明：**
+- `_cacheKey`：Step 0 中描述的全部输入源的 SHA-256 hash，用于下次校验
+- `_cachedAt`：写入时的 ISO 8601 时间戳，便于排查问题
+- `_lockfileHash`：lockfile 文件内容的 SHA-256 hash，单独记录便于调试
+
+### overrides 配置
+
+`.harness-env.json` 支持 `overrides` 字段，允许项目自定义验证行为：
+
+```json
+{
+  "overrides": {
+    "lint": { 
+      "tool": "biome",        // 强制指定工具，跳过自动检测
+      "required": true,        // 默认 true
+      "timeout": 180           // 覆盖默认超时（秒）
+    },
+    "format": { 
+      "required": false,       // 该项目无 format，SKIPPED 不报警
+      "reason": "Biome 已包含 format"  // SKIPPED 时显示的原因
+    },
+    "build": { 
+      "required": false, 
+      "reason": "纯 library，无构建产物" 
+    },
+    "typeCheck": { 
+      "tool": "vue-tsc",       // 强制 vue-tsc
+      "timeout": 240 
+    },
+    "fixThreshold": 100,       // 自动修复文件数量阈值（默认 50）
+    "monorepo": { 
+      "incrementalLint": true,  // 启用增量 lint
+      "incrementalBuild": true,
+      "filterCommand": "pnpm --filter"  // 自定义 filter 命令
+    }
+  }
+}
+```
+
+#### overrides 管理规则
+- `overrides` 字段由用户手动编辑，framework-detector 不自动写入
+- 首次生成 .harness-env.json 时，不包含 overrides（使用默认值）
+- 检测到 overrides 字段存在时，缓存刷新不会清除 overrides
+- 如需自定义，在 .harness-env.json 中手动添加 overrides 字段
 
 输出检测摘要：
 ```
@@ -200,5 +312,5 @@ demandRoot:
   框架: Vue 3.5 + Element Plus + SCSS
   包管理器: pnpm
   monorepo: 是（appDir: apps/template）
-  已写入 .harness-env.json
+  已写入 .harness-env.json（cacheKey: <前8位hash>...）
 ```

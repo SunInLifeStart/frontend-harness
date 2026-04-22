@@ -1,0 +1,11 @@
+{
+  "name": "frontend-harness",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Frontend development workflow harness for AI coding assistants",
+  "scripts": {
+    "test": "bash tests/doc-consistency.sh",
+    "test:smoke": "bash tests/smoke-test.sh",
+    "test:all": "bash tests/doc-consistency.sh && bash tests/smoke-test.sh"
+  }
+}

@@ -95,14 +95,15 @@ description: |
 
 | 能力 | 文档 | 用途 |
 |------|------|------|
-| 框架检测 | `references/framework-detector.md` | 检测框架/UI库/CSS方案/monorepo，输出 `.harness-env.json` |
+| 框架检测 | `references/framework-detector.md` | 检测框架/UI库/CSS方案/monorepo，输出 `.harness-env.json`（含缓存失效 + overrides） |
 | PRD 解析 | `references/doc-parser.md` | docx/pdf → 结构化 Markdown |
 | Figma 解析 | `references/figma-analyzer.md` | 设计稿 → 组件树 + 状态矩阵 |
 | API 解析 | `references/api-spec-analyzer.md` | API 文档 → 接口清单 + 复用标注 |
 | 资产扫描 | `references/component-scanner.md` | 扫描组件/hooks/api/store 等可复用资产 |
 | 代码审查 | `references/code-reviewer.md` | 多维度审查（feat 8维/change 4维/bug 2维/refactor 3维） |
-| 测试执行 | `references/test-runner.md` | 测试用例检查清单 / 实际运行测试 |
-| 代码验证 | `references/lint-verify.md` | lint + format + build 验证链 |
+| 代码验证 | `references/phases/verify-code.md` | 强制验证阶段：工具检测 → lint → format → build → type-check，输出标准验证报告 |
+| 测试执行 | `references/phases/verify-test.md` | PASS/FAIL（实际运行）或 STATIC CHECK（Markdown 用例） |
+| Playwright 验证 | `references/phases/verify-e2e.md` | 功能验证 + UI 截图对比（**可选**，未安装自动跳过） |
 
 ---
 
@@ -113,6 +114,25 @@ description: |
 - 每个工作流的阶段按顺序进行，不跳步
 - 遇到审批门禁（标 ⏸️ 的地方）必须停下等用户确认
 
+### 进度检查点
+
+所有工作流输出 `[阶段 X/N]` 格式的进度标记，例如：
+
+```
+[阶段 1/5] 环境探测...
+[阶段 2/5] 实现编码...
+[阶段 3/5] 代码审查...
+[阶段 4/5] 代码验证...
+  [验证 1/5] Lint 检查...
+  [验证 2/5] Format 检查...
+  [验证 3/5] Build 验证...
+  [验证 4/5] 类型检查...
+  [验证 5/5] 测试执行...
+[阶段 5/5] 完成总结...
+```
+
+验证阶段（phases/verify-code.md）内部输出 `[验证 X/5]` 子进度，嵌套在工作流主进度内。
+
 ---
 
 ## 审批门禁政策
@@ -120,7 +140,22 @@ description: |
 ### 一般原则
 - 任何可能影响产品用户的变更都需要门禁
 - 门禁用 ⏸️ 符号标注
-- 门禁停下后需要用户明确确认（"批准"、"继续"、"开始"等）
+- 门禁停下后需要用户明确确认（“批准”、“继续”、“开始”等）
+
+### 验证阶段门禁
+
+所有代码修改工作流必须通过 `phases/verify-code.md` 执行代码验证，输出标准验证报告（Markdown 表格）：
+
+```markdown
+| 步骤 | 工具 | 版本 | 耗时 | 结果 | 详情 |
+|------|------|------|------|------|------|
+| Lint | ESLint 9 | 9.x.x | 3.2s | ✅ PASS | 无错误 |
+| Format | Prettier | 3.x.x | 1.1s | ✅ PASS | 无改动 |
+| Build | vite | 6.x.x | 12.4s | ✅ PASS | 编译成功 |
+| TypeCheck | tsc | 5.x.x | 8.7s | ✅ PASS | 无类型错误 |
+```
+
+> Hook（lint-format.sh）是 Claude Code 专属的额外安全网，不替代 phases/verify-code.md 的显式执行。
 
 ### 工作流门禁清单
 
@@ -177,3 +212,18 @@ demand/<需求名>/
 
 - 项目根目录有 `design.md` → 作为样式/布局标准
 - 无 `design.md` → 按 Figma 设计稿或截图一比一还原
+
+---
+
+## IDE 兼容策略
+
+| IDE | 验证保障方式 | 覆盖程度 |
+|-----|------------|--------|
+| Claude Code | 工作流显式调用 + lint-format.sh hook | 双重保障 |
+| Cursor | 工作流显式调用（通过 .cursorrules 引用 SKILL.md） | 单链路 |
+| Copilot Workspace | 工作流显式调用 | 单链路 |
+| Windsurf | 工作流显式调用 | 单链路 |
+| 其他 | 工作流显式调用 | 单链路 |
+
+> 核心原则：工作流中的 `phases/verify-code.md` 是主链路，覆盖所有 IDE。
+> Hook（`lint-format.sh`）是 Claude Code 专属的额外安全网。
