@@ -68,6 +68,15 @@ bash .claude/skills/frontend-harness/scripts/postinstall.sh .
 | Playwright 验证 | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - |
 | 代码验证 | ✅ | ✅ | ✅ | ✅ | - | ✅ | ✅ | - | ✅ |
 
+> **代码审查** = 按工作流类型自动匹配审查维度，完整 8 维为：①框架规范合规 ②组件复用 ③UI 状态完整性 ④可访问性 ⑤安全性 ⑥i18n 完整性 ⑦路由/权限注册 ⑧设计规范合规。各 profile 裁剪如下：
+>
+> | Profile | 维度数 | 包含 | 适用工作流 |
+> |---------|--------|------|------------|
+> | demand | 8维 | 全部 | feat: |
+> | modify | 4维 | ①②③⑧ | change: |
+> | refactor | 3维 | ①②⑤ | refactor: |
+> | fix | 2维 | ①⑤ | bug: |
+>
 > **代码验证** = 显式调用 `phases/verify-code.md` → `lint-verify.md`（工具检测 + lint + format + build + type-check），所有代码修改工作流强制执行。
 >
 > **测试执行** = 自动化测试文件实际运行后给出 PASS / FAIL；Markdown 用例只给 STATIC CHECK PASS / STATIC CHECK FAIL / NEEDS MANUAL VERIFY。
